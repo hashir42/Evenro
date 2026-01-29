@@ -1,0 +1,399 @@
+/* Import forms styles */
+@import './styles/forms.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Premium SaaS Design System - All colors, gradients, fonts, etc defined here.
+All colors MUST be HSL format for consistency.
+*/
+
+@layer base {
+  :root {
+    /* Background and Base Colors */
+    --background: 0 0% 96%; /* Light grey background */
+    --foreground: 0 0% 13%;
+
+    /* Card System - Premium white with subtle shadows */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+
+    /* Popover/Dialog */
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* Primary - Gold accent for CTAs and highlights */
+    --primary: 45 86% 52%; /* #D4AF37 in HSL */
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Subtle gray for backgrounds */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 13%;
+
+    /* Muted - For subtle backgrounds and borders */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    /* Accent - Alternative to primary for variety */
+    --accent: 45 86% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Red for errors and deletes */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Form elements */
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 45 86% 52%;
+
+    /* Border radius - Premium 16px for cards, 8px for components */
+    --radius: 1rem;
+
+    /* Sidebar - Dark gradient theme */
+    --sidebar-background: 204 75% 13%; /* #0F2A44 in HSL */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 45 86% 52%; /* Gold */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 204 65% 18%; /* #172433 in HSL */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 204 50% 22%; /* Darker border */
+    --sidebar-ring: 45 86% 52%;
+
+    /* Status colors */
+    --success: 172 66% 50%; /* #2EC4B6 in HSL - Aqua */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 96% 53%; /* #F4C430 in HSL - Amber */
+    --warning-foreground: 0 0% 13%;
+
+    /* Premium Gradients */
+    --gradient-sidebar: linear-gradient(135deg, hsl(204 75% 13%) 0%, hsl(204 65% 18%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(45 86% 52%) 0%, hsl(45 80% 60%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(45 86% 52%) 0%, hsl(45 80% 45%) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+
+    /* Premium Shadows - Glassmorphism effect */
+    --shadow-premium: 0 6px 18px rgba(0,0,0,0.06);
+    --shadow-elegant: 0 12px 32px rgba(0,0,0,0.08);
+    --shadow-card: 0 6px 18px rgba(0,0,0,0.06);
+    --shadow-button: 0 4px 12px rgba(212, 175, 55, 0.15);
+    --shadow-glass: 0 8px 32px rgba(0,0,0,0.04);
+
+    /* Typography */
+    --font-sans: 'Inter', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 45 86% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 45 86% 52%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 45 86% 52%;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 45 86% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 18%;
+    --sidebar-ring: 45 86% 52%;
+
+    --success: 172 66% 50%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 96% 53%;
+    --warning-foreground: 0 0% 13%;
+
+    --gradient-sidebar: linear-gradient(135deg, hsl(222 47% 11%) 0%, hsl(217 33% 18%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(45 86% 52%) 0%, hsl(45 80% 60%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(45 86% 52%) 0%, hsl(45 80% 45%) 100%);
+
+    --shadow-premium: 0 6px 18px rgba(0,0,0,0.12);
+    --shadow-elegant: 0 12px 32px rgba(0,0,0,0.16);
+    --shadow-card: 0 6px 18px rgba(0,0,0,0.12);
+    --shadow-button: 0 4px 12px rgba(212, 175, 55, 0.25);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* Typography hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+    font-weight: 600;
+  }
+
+  h1 {
+    @apply text-3xl lg:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl lg:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl lg:text-2xl;
+  }
+
+  /* Premium button styles */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground font-medium px-6 py-3 rounded-xl transition-all duration-180 ease-out transform hover:scale-105;
+    box-shadow: 0 2px 8px rgba(212, 175, 55, 0.12);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+  }
+
+  /* Compact button on mobile */
+  @media (max-width: 768px) {
+    .btn-primary {
+      @apply px-3 py-2 rounded-lg;
+      box-shadow: 0 1px 4px rgba(212, 175, 55, 0.1);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 2px 6px rgba(212, 175, 55, 0.15);
+    }
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground font-medium px-6 py-3 rounded-xl border border-border hover:bg-accent hover:text-accent-foreground transition-all duration-180 ease-out;
+  }
+
+  .btn-ghost {
+    @apply text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-180 ease-out;
+  }
+
+  /* Card animations - optimized for performance */
+  .card-hover {
+    @apply transition-all duration-180 ease-out;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    will-change: transform;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+  }
+
+  /* Glassmorphism effect */
+  .glass {
+    @apply bg-white/90 backdrop-blur-sm border border-white/20;
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* Sidebar gradient background */
+  .sidebar-gradient {
+    background: var(--gradient-sidebar);
+  }
+
+  /* Mobile-First App Styles */
+  @media (max-width: 768px) {
+    /* Remove default mobile zoom on inputs */
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+
+    /* Touch-friendly tap targets */
+    button, a, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Optimize scrolling */
+    * {
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+
+    /* Full viewport height accounting for mobile browsers */
+    .mobile-vh-full {
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+
+    /* Safe area insets for notched devices */
+    .safe-area-top {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    .safe-area-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Prevent text selection on UI elements */
+    .no-select {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Mobile card optimization */
+    .card {
+      border-radius: 12px;
+    }
+
+    /* Compact spacing for mobile */
+    body {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      font-size: 1.75rem !important;
+    }
+
+    h2 {
+      font-size: 1.5rem !important;
+    }
+
+    h3 {
+      font-size: 1.25rem !important;
+    }
+  }
+
+  /* Prevent pull-to-refresh on mobile */
+  body {
+    overscroll-behavior-y: contain;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Touch feedback */
+  .touch-feedback {
+    transition: transform 0.1s ease, opacity 0.1s ease;
+  }
+
+  .touch-feedback:active {
+    transform: scale(0.97);
+    opacity: 0.8;
+  }
+
+  /* Mobile-optimized dialog/modal */
+  @media (max-width: 768px) {
+    [role="dialog"] {
+      max-height: 90vh;
+      max-width: 95vw !important;
+      width: 95vw !important;
+      border-radius: 16px 16px 0 0;
+      padding: 16px !important;
+      margin: 0 auto !important;
+    }
+
+    /* Compact dialog headers */
+    [role="dialog"] h2,
+    [role="dialog"] [class*="DialogTitle"] {
+      font-size: 1.125rem !important;
+      padding-bottom: 12px !important;
+    }
+
+    /* Compact dialog content */
+    [role="dialog"] [class*="DialogContent"] {
+      padding: 16px !important;
+      gap: 12px !important;
+    }
+
+    /* Smaller form inputs in dialogs */
+    [role="dialog"] input,
+    [role="dialog"] select,
+    [role="dialog"] textarea {
+      padding: 8px 12px !important;
+      font-size: 14px !important;
+    }
+
+    /* Compact labels */
+    [role="dialog"] label {
+      font-size: 13px !important;
+      margin-bottom: 6px !important;
+    }
+
+    /* Smaller buttons in dialogs */
+    [role="dialog"] button {
+      padding: 8px 16px !important;
+      font-size: 13px !important;
+      height: 36px !important;
+    }
+
+    /* Compact spacing in dialog forms */
+    [role="dialog"] form > div {
+      gap: 12px !important;
+    }
+  }
+
+  /* Custom Scrollbar Styles */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* Smooth scrollbar appearance */
+  .scrollbar-thin::-webkit-scrollbar-thumb:active {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+}
