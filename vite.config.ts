@@ -39,7 +39,6 @@ export default defineConfig(({ mode }) => ({
           react: ['react', 'react-dom', 'react-router-dom'],
           vendor: ['@supabase/supabase-js'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-          supabase: ['@supabase/supabase-js'],
           charts: ['recharts'],
         },
       },
