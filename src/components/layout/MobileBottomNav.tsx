@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Calendar, FileText, DollarSign, Plus, X, Users, Package, Building2, BarChart, Settings, FolderOpen } from "lucide-react";
+import { Home, Calendar, FileText, DollarSign, Plus, X, Users, Package, Building2, BarChart, Settings, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MobileBottomNav = () => {
@@ -18,10 +18,10 @@ const MobileBottomNav = () => {
 
   const quickActions = [
     { icon: Users, label: "Clients", action: () => navigate("/clients") },
+    { icon: Receipt, label: "Expenses", action: () => navigate("/expenses") },
     { icon: Package, label: "Packages", action: () => navigate("/packages") },
     { icon: Building2, label: "Venues", action: () => navigate("/entities") },
     { icon: FileText, label: "Invoices", action: () => navigate("/invoices") },
-    { icon: FolderOpen, label: "Documents", action: () => navigate("/documents") },
     { icon: BarChart, label: "Reports", action: () => navigate("/reports") },
     { icon: DollarSign, label: "Accounts", action: () => navigate("/accounts") },
     { icon: Settings, label: "Settings", action: () => navigate("/settings") },

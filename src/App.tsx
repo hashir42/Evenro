@@ -26,6 +26,7 @@ import Payments from "./pages/Payments";
 import Subscriptions from "./pages/Subscriptions";
 import Documents from "./pages/Documents";
 import Accounts from "./pages/Accounts";
+import Expenses from "./pages/Expenses";
 import { Suspense } from "react";
 import DashboardLayout from "./components/layout/DashboardLayout";
 
@@ -74,6 +75,7 @@ const App = () => (
                 <Route path="/accounts" element={<Accounts />} />
                 <Route path="/subscriptions" element={<Subscriptions />} />
                 <Route path="/documents" element={<Documents />} />
+                <Route path="/expenses" element={<Expenses />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>

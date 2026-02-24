@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, MapPin, DollarSign, Package, User, Clock, CheckCircle, XCircle, AlertCircle, Building2 } from "lucide-react";
+import { Calendar, MapPin, DollarSign, Package, User, Clock, CheckCircle, XCircle, AlertCircle, Building2, Receipt, Plus, TrendingDown, PiggyBank, Calculator } from "lucide-react";
 import { toast } from "sonner";
 
 
@@ -31,18 +31,77 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
     amount: 0,
     payment_method: "cash",
     payment_date: new Date().toISOString().split("T")[0],
-    payment_type: "full",
+    payment_type: "full" as "full" | "partial" | "advance" | "overpaid",
+  });
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [expenseData, setExpenseData] = useState({
+    amount: 0,
+    category: "Equipment",
+    payment_mode: "cash",
+    date: new Date().toISOString().split("T")[0],
+    description: "",
   });
 
   useEffect(() => {
     if (booking && open) {
       fetchPayments();
+      fetchExpenses();
     }
   }, [booking, open]);
 
+  const fetchExpenses = async () => {
+    if (!booking) return;
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*")
+      .eq("booking_id", booking.id)
+      .order("date", { ascending: false });
+
+    if (!error) {
+      setExpenses(data || []);
+    }
+  };
+
+  const addExpense = async () => {
+    if (expenseData.amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    setIsAddingExpense(true);
+    const { error } = await supabase.from("expenses").insert({
+      booking_id: booking.id,
+      vendor_id: user!.id,
+      amount: expenseData.amount,
+      category: expenseData.category,
+      payment_mode: expenseData.payment_mode,
+      date: expenseData.date,
+      description: expenseData.description,
+      vendor: booking.clients?.name || "N/A", // Defaulting vendor to client name for quick reference
+    });
+
+    setIsAddingExpense(false);
+
+    if (error) {
+      toast.error("Failed to add expense");
+      return;
+    }
+
+    toast.success("Expense added successfully");
+    fetchExpenses();
+    setExpenseData({
+      amount: 0,
+      category: "Equipment",
+      payment_mode: "cash",
+      date: new Date().toISOString().split("T")[0],
+      description: "",
+    });
+  };
+
   const fetchPayments = async () => {
     if (!booking) return;
-    
+
     const { data, error } = await supabase
       .from("payments")
       .select("*")
@@ -58,48 +117,48 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
   const totalPayments = payments
     .filter(p => p.payment_type !== 'refund')
     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    
+
   const totalRefunds = payments
     .filter(p => p.payment_type === 'refund')
     .reduce((sum, p) => sum + Number(p.refund_amount || p.amount || 0), 0);
 
   const totalAmount = Number(booking?.total_amount || 0);
-  
+
   // Calculate net paid (total payments - total refunds)
   const netPaid = Math.max(0, totalPayments - totalRefunds);
-  
+
   // Calculate pending amount, ensuring it's never negative and never exceeds total amount
   const pendingAmount = Math.max(0, Math.min(totalAmount, totalAmount - netPaid));
-  
+
   // Calculate payment progress (0-100%)
   const paymentProgress = totalAmount > 0 ? (netPaid / totalAmount) * 100 : 0;
 
   // Derive status: confirmed/completed/cancelled based on booking state, date, and time
   const derivedStatus = (() => {
     if (booking?.status === 'cancelled') return 'cancelled';
-    
+
     // Check if event_date exists
     if (!booking?.event_date) return 'confirmed';
-    
+
     const now = new Date();
     const eventDate = new Date(booking.event_date);
-    
+
     // If event date is in the future, it's confirmed
     if (eventDate > now) return 'confirmed';
-    
+
     // If there's no end time, consider it completed if the date has passed
     if (!booking.to_time) {
       return 'completed';
     }
-    
+
     // Create a date object for the end time of the event
     const [hours, minutes] = booking.to_time.split(':').map(Number);
     const endTime = new Date(eventDate);
     endTime.setHours(hours, minutes, 0, 0);
-    
+
     // If current time is after the end time, it's completed
     if (now >= endTime) return 'completed';
-    
+
     // If we're on the event date but before the end time, it's still confirmed
     return 'confirmed';
   })();
@@ -108,7 +167,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
     if (!booking) return;
     const { error } = await supabase
       .from('bookings')
-      .update({ 
+      .update({
         status: 'completed',
         updated_at: new Date().toISOString()
       })
@@ -129,7 +188,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
     if (!booking) return;
     const { error } = await supabase
       .from('bookings')
-      .update({ 
+      .update({
         status: 'cancelled',
         updated_at: new Date().toISOString()
       })
@@ -338,7 +397,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                   ₹{pendingAmount.toLocaleString()}
                 </span>
               </div>
-              
+
               {/* Progress Bar */}
               {totalAmount > 0 && (
                 <div className="pt-2">
@@ -358,14 +417,53 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
 
           <Separator />
 
+          {/* Financial Summary (Profit/Loss) */}
+          <div className="space-y-3 md:space-y-4 pt-1">
+            <h4 className="text-sm md:text-base font-semibold flex items-center gap-2 text-indigo-600">
+              <Calculator className="h-4 w-4 md:h-5 md:w-5" />
+              Financial Summary
+            </h4>
+
+            {(() => {
+              const totalRevenue = totalAmount;
+              const totalCosts = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+              const netProfit = totalRevenue - totalCosts;
+              const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+              const isProfit = netProfit >= 0;
+
+              return (
+                <div className={`p-4 rounded-xl border-2 flex flex-col md:flex-row items-center justify-between gap-4 ${isProfit ? 'bg-indigo-50/50 border-indigo-100' : 'bg-red-50 border-red-100'
+                  }`}>
+                  <div className="text-center md:text-left">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Net Profit</p>
+                    <p className={`text-2xl md:text-3xl font-black ${isProfit ? 'text-indigo-700' : 'text-red-700'}`}>
+                      ₹{netProfit.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-center md:items-end gap-1">
+                    <Badge className={isProfit ? "bg-indigo-600" : "bg-red-600"}>
+                      {margin.toFixed(1)}% Margin
+                    </Badge>
+                    <p className="text-[10px] md:text-xs text-muted-foreground">
+                      Revenue: ₹{totalRevenue.toLocaleString()} | Costs: ₹{totalCosts.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <Separator />
+
           {/* Cancellation */}
           <div className="space-y-2 md:space-y-3">
             <Label className="text-xs md:text-sm">Actions</Label>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setCancelDialogOpen(true)} 
-                disabled={booking.status === 'cancelled'} 
+              <Button
+                variant="outline"
+                onClick={() => setCancelDialogOpen(true)}
+                disabled={booking.status === 'cancelled'}
                 className="h-8 md:h-10 text-xs md:text-sm px-3 md:px-4 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
               >
                 Cancel Booking
@@ -445,13 +543,13 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
               </div>
               <div className="space-y-1.5 md:space-y-2 md:col-span-2">
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="advance_payment_dialog" 
+                  <Checkbox
+                    id="advance_payment_dialog"
                     checked={isAdvancePayment}
                     onCheckedChange={(checked) => setIsAdvancePayment(checked as boolean)}
                   />
-                  <Label 
-                    htmlFor="advance_payment_dialog" 
+                  <Label
+                    htmlFor="advance_payment_dialog"
                     className="text-xs md:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                   >
                     This is an advance payment
@@ -501,13 +599,12 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
                           {payment.payment_type && ` • ${payment.payment_type}`}
                         </p>
                       </div>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs shrink-0 ${
-                          payment.payment_type === 'refund' 
-                            ? 'text-red-600 border-red-200' 
-                            : 'text-green-600 border-green-200'
-                        }`}
+                      <Badge
+                        variant="outline"
+                        className={`text-xs shrink-0 ${payment.payment_type === 'refund'
+                          ? 'text-red-600 border-red-200'
+                          : 'text-green-600 border-green-200'
+                          }`}
                       >
                         {payment.payment_type === 'refund' ? 'Refunded' : 'Paid'}
                       </Badge>
@@ -517,6 +614,92 @@ export function BookingDetailDialog({ booking, open, onOpenChange, onUpdate }: B
               </div>
             </>
           )}
+          {/* Expenses Section */}
+          <Separator />
+          <div className="space-y-3 md:space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm md:text-base font-semibold flex items-center gap-2 text-orange-600">
+                <Receipt className="h-4 w-4 md:h-5 md:w-5" />
+                Expenses Tracking
+              </h4>
+              <Badge variant="outline" className="text-orange-600 border-orange-200">
+                Total: ₹{expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0).toLocaleString()}
+              </Badge>
+            </div>
+
+            {/* Add Expense Form */}
+            <div className="bg-orange-50/50 p-3 md:p-4 rounded-lg border border-orange-100 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Amount (₹)</Label>
+                  <Input
+                    type="number"
+                    value={expenseData.amount || ""}
+                    onChange={(e) => setExpenseData({ ...expenseData, amount: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Category</Label>
+                  <Select
+                    value={expenseData.category}
+                    onValueChange={(value) => setExpenseData({ ...expenseData, category: value })}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["Equipment", "Travel", "Food & Catering", "Decoration", "Photography", "Software", "Other"].map(c => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label className="text-xs">Description</Label>
+                  <Input
+                    value={expenseData.description}
+                    onChange={(e) => setExpenseData({ ...expenseData, description: e.target.value })}
+                    placeholder="Brief description..."
+                    className="h-9"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={addExpense}
+                disabled={isAddingExpense}
+                className="w-full h-9 text-xs bg-orange-600 hover:bg-orange-700"
+              >
+                {isAddingExpense ? "Adding..." : "Add Expense"}
+              </Button>
+            </div>
+
+            {/* Expense History */}
+            {expenses.length > 0 ? (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {expenses.map((expense) => (
+                  <div key={expense.id} className="flex items-center justify-between p-2 md:p-3 border rounded-lg bg-orange-50/20 border-orange-100">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-md">
+                          {expense.category}
+                        </span>
+                        <p className="text-xs md:text-sm font-medium">₹{Number(expense.amount).toLocaleString()}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {new Date(expense.date).toLocaleDateString()} • {expense.description || "No description"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 border border-dashed rounded-lg">
+                <p className="text-xs text-muted-foreground">No expenses recorded for this booking yet.</p>
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

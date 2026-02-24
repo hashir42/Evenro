@@ -4,17 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import ClientForm from "@/components/ClientForm";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Calendar, MapPin, Pencil, Trash2, Eye, MessageCircle, Download, Upload, Building2, UserPlus, Check, ChevronLeft, ChevronRight, ChevronsUpDown, Search, X, MessageSquare, Clock as Clock4, X as XIcon } from "lucide-react";
+import { Plus, Calendar, MapPin, Pencil, Trash2, Eye, MessageCircle, Download, Upload, Building2, UserPlus, Check, ChevronLeft, ChevronRight, ChevronsUpDown, Search, X, MessageSquare, Clock as Clock4, X as XIcon, Receipt, TrendingDown, Calculator, PiggyBank, DollarSign, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format, parse } from "date-fns";
@@ -29,7 +30,7 @@ const formatTime12Hour = (timeString: string) => {
     const [hours, minutes] = timeString.split(':').map(Number);
     const date = new Date();
     date.setHours(hours, minutes, 0);
-    
+
     // Format as 12-hour time with AM/PM
     return format(date, 'h:mm a');
   } catch (error) {
@@ -56,7 +57,7 @@ const Bookings = () => {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
   const [conflictingBookings, setConflictingBookings] = useState<any[]>([]);
-  const [createConfirmOpen, setCreateConfirmOpen] = useState(false); 
+  const [createConfirmOpen, setCreateConfirmOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
@@ -71,6 +72,9 @@ const Bookings = () => {
   });
   // Initialize payments state with proper type
   const [paymentsByBooking, setPaymentsByBooking] = useState<Record<string, { paid: number; refunds: number }>>({});
+  const [expensesByBooking, setExpensesByBooking] = useState<Record<string, number>>({});
+  const [profitBreakdownOpen, setProfitBreakdownOpen] = useState(false);
+  const [selectedBookingForProfit, setSelectedBookingForProfit] = useState<any>(null);
   const [formData, setFormData] = useState({
     event_name: "",
     event_date: "",
@@ -82,7 +86,7 @@ const Bookings = () => {
     entity_id: "",
     total_amount: 0,
   });
-  
+
   // --- Payment state for initial payment ---
   const [paymentData, setPaymentData] = useState({
     amount: 0,
@@ -92,6 +96,30 @@ const Bookings = () => {
     notes: "",
   });
   const [isAdvancePayment, setIsAdvancePayment] = useState(false);
+
+  // --- Quick Expense State ---
+  const [selectedBookingForExpense, setSelectedBookingForExpense] = useState<any>(null);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [isRecordingExpense, setIsRecordingExpense] = useState(false);
+  const [expenseData, setExpenseData] = useState({
+    date: new Date().toISOString().split("T")[0],
+    category: "Equipment",
+    description: "",
+    amount: "",
+    vendor: "",
+    payment_mode: "Cash",
+  });
+
+  // --- Quick Payment State ---
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<any>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [isRecordingQuickPayment, setIsRecordingQuickPayment] = useState(false);
+  const [quickPaymentData, setQuickPaymentData] = useState({
+    amount: "",
+    payment_method: "cash",
+    payment_date: new Date().toISOString().split("T")[0],
+    notes: "",
+  });
 
   // Auto-select payment_type based on amount and advance checkbox
   useEffect(() => {
@@ -135,29 +163,29 @@ const Bookings = () => {
   const getDerivedStatus = (booking: any) => {
     // If booking is cancelled, return cancelled
     if (booking.status === 'cancelled') return 'cancelled';
-    
+
     // Check if event_date exists
     if (!booking.event_date) return 'confirmed';
-    
+
     const now = new Date();
     const eventDate = new Date(booking.event_date);
-    
+
     // If event date is in the future, it's confirmed
     if (eventDate > now) return 'confirmed';
-    
+
     // If there's no end time, consider it completed if the date has passed
     if (!booking.to_time) {
       return 'completed';
     }
-    
+
     // Create a date object for the end time of the event
     const [hours, minutes] = booking.to_time.split(':').map(Number);
     const endTime = new Date(eventDate);
     endTime.setHours(hours, minutes, 0, 0);
-    
+
     // If current time is after the end time, it's completed
     if (now >= endTime) return 'completed';
-    
+
     // If we're on the event date but before the end time, it's still confirmed
     return 'confirmed';
   };
@@ -179,12 +207,12 @@ const Bookings = () => {
         const statusOrder = { 'confirmed': 0, 'completed': 1, 'cancelled': 2 };
         const statusA = getDerivedStatus(a);
         const statusB = getDerivedStatus(b);
-        
+
         // First sort by status
         if (statusOrder[statusA] !== statusOrder[statusB]) {
           return statusOrder[statusA] - statusOrder[statusB];
         }
-        
+
         // If status is the same, sort by event date
         const dateA = new Date(a.event_date);
         const dateB = new Date(b.event_date);
@@ -205,33 +233,33 @@ const Bookings = () => {
         );
       });
     }
-    
+
     // Calculate pagination
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginated = filtered.slice(startIndex, startIndex + itemsPerPage);
-    
+
     return {
       filteredBookings: filtered,
       paginatedBookings: paginated,
       totalPages
     };
   }, [bookings, statusFilter, searchQuery, currentPage, itemsPerPage]);
-  
+
   // Update filteredBookings state when filtered data changes
   useEffect(() => {
     setFilteredBookings(filtered);
   }, [filtered]);
-  
+
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchQuery, itemsPerPage]);
-  
+
   const handlePageChange = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
-  
+
   const handleItemsPerPageChange = (value: string) => {
     const newItemsPerPage = parseInt(value, 10);
     setItemsPerPage(newItemsPerPage);
@@ -245,6 +273,7 @@ const Bookings = () => {
       fetchPackages();
       fetchEntities();
       fetchPaymentsByBooking();
+      fetchExpensesByBooking();
     }
   }, [user]);
 
@@ -259,7 +288,7 @@ const Bookings = () => {
         .from("bookings")
         .select(`
           *,
-          clients(name),
+          clients(name, email, whatsapp_number, phone),
           packages(name, price),
           portfolio_items(title, price),
           entities(name)
@@ -298,29 +327,47 @@ const Bookings = () => {
       .from("payments")
       .select("booking_id, amount, payment_type, refund_amount")
       .eq("vendor_id", user!.id);
-      
+
     if (!error && data) {
       const map: Record<string, { paid: number; refunds: number }> = {};
-      
+
       // First pass: calculate total payments (excluding refunds)
       data.forEach((p: any) => {
         if (!p.booking_id || p.payment_type === 'refund') return;
         if (!map[p.booking_id]) map[p.booking_id] = { paid: 0, refunds: 0 };
         map[p.booking_id].paid += Number(p.amount || 0);
       });
-      
+
       // Second pass: calculate refunds
       data.forEach((p: any) => {
         if (!p.booking_id || p.payment_type !== 'refund') return;
         if (!map[p.booking_id]) map[p.booking_id] = { paid: 0, refunds: 0 };
         map[p.booking_id].refunds += Number(p.refund_amount || p.amount || 0);
       });
-      
+
       // Update the state with the new payments map
       setPaymentsByBooking(map);
     } else if (error) {
       console.error('Error fetching payments:', error);
       toast.error('Failed to load payment information');
+    }
+  };
+
+  const fetchExpensesByBooking = async () => {
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("booking_id, amount")
+      .eq("vendor_id", user!.id);
+
+    if (!error && data) {
+      const map: Record<string, number> = {};
+      data.forEach((e: any) => {
+        if (!e.booking_id) return;
+        map[e.booking_id] = (map[e.booking_id] || 0) + Number(e.amount || 0);
+      });
+      setExpensesByBooking(map);
+    } else if (error) {
+      console.error('Error fetching expenses for profit:', error);
     }
   };
 
@@ -341,25 +388,25 @@ const Bookings = () => {
       }
 
       const payments = paymentsByBooking[booking.id] || { paid: 0, refunds: 0 };
-      
+
       // Calculate total payments (excluding refunds)
       const totalPayments = Number(payments.paid) || 0;
-      
+
       // Calculate total refunds
       const totalRefunds = Number(payments.refunds) || 0;
-      
+
       // Calculate net paid (payments - refunds, never negative)
       const netPaid = Math.max(0, totalPayments - totalRefunds);
-      
+
       // Calculate total amount from booking
       const totalAmount = Number(booking.total_amount) || 0;
-      
+
       // Calculate pending amount (never negative and never exceeds total amount)
       const pending = Math.max(0, Math.min(totalAmount, totalAmount - netPaid));
-      
-      return { 
-        totalPaid: netPaid, 
-        pending, 
+
+      return {
+        totalPaid: netPaid,
+        pending,
         totalAmount,
         paymentProgress: totalAmount > 0 ? Math.min(100, Math.max(0, (netPaid / totalAmount) * 100)) : 0
       };
@@ -383,7 +430,7 @@ const Bookings = () => {
       .from('packages')
       .select("*, entities(name)")
       .eq("vendor_id", user!.id);
-    
+
     if (error) {
       console.error("Error fetching packages:", error);
       toast.error("Failed to load packages");
@@ -400,7 +447,7 @@ const Bookings = () => {
   // Handle package selection
   const handlePackageSelect = (packageId: string) => {
     console.log('Selected package ID:', packageId);
-    
+
     if (packageId === 'none') {
       console.log('No package selected, resetting amount');
       setFormData(prev => ({
@@ -410,14 +457,14 @@ const Bookings = () => {
       }));
       return;
     }
-    
+
     const selectedPackage = packages.find(pkg => pkg.id === packageId);
     console.log('Selected package:', selectedPackage);
-    
+
     if (selectedPackage) {
       const price = Number(selectedPackage.price) || 0;
       console.log('Setting amount to:', price);
-      
+
       setFormData(prev => ({
         ...prev,
         package_id: packageId,
@@ -442,7 +489,7 @@ const Bookings = () => {
       .eq("vendor_id", user!.id)
       .eq("is_active", true)
       .order("name");
-    
+
     if (error) {
       console.error("Error fetching entities:", error);
       toast.error("Failed to load entities");
@@ -457,25 +504,38 @@ const Bookings = () => {
       id: client.id,
       name: client.name,
       email: client.email,
-      phone: client.phone
+      phone: client.phone,
+      whatsapp_number: client.whatsapp_number
     };
-    
+
     // Update the clients list with the new client
     setClients(prevClients => [...prevClients, newClientData]);
-    
+
     // Update the form with the new client's ID
     setFormData(prev => ({
       ...prev,
       client_id: client.id.toString(),
     }));
-    
+
     // Close the dialog
     setIsClientDialogOpen(false);
-    
+
     // Refresh the full clients list in the background
     fetchClients().catch(console.error);
-    
+
     toast.success("Client added and selected successfully");
+
+    // Auto-trigger Dual (WhatsApp & Email) notification for new client
+    const message = `*New Client Added*\n\n*Name:* ${client.name}\n*Phone:* ${client.phone}\n*WhatsApp:* ${client.whatsapp_number || client.phone}\n*Email:* ${client.email || 'N/A'}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    const emailSubject = `New Client Record: ${client.name}`;
+    const emailBody = message.replace(/\*/g, ''); // Remove markdown stars for email
+    const mailtoUrl = `mailto:${client.email || ''}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+    window.open(whatsappUrl, "_blank");
+    setTimeout(() => {
+      window.location.href = mailtoUrl;
+    }, 500);
   };
 
   // when called from the form it receives an event -> open confirm dialog first.
@@ -484,7 +544,7 @@ const Bookings = () => {
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    
+
     if (!formData.client_id) {
       errors.client_id = "Client is required";
     }
@@ -500,13 +560,13 @@ const Bookings = () => {
     if (formData.from_time && formData.to_time) {
       const [startHours, startMinutes] = formData.from_time.split(':').map(Number);
       const [endHours, endMinutes] = formData.to_time.split(':').map(Number);
-      
+
       const startDate = new Date();
       startDate.setHours(startHours, startMinutes, 0, 0);
-      
+
       const endDate = new Date();
       endDate.setHours(endHours, endMinutes, 0, 0);
-      
+
       if (startDate >= endDate) {
         errors.time = "End time must be after start time";
       }
@@ -523,7 +583,7 @@ const Bookings = () => {
     if (!confirmed) {
       const isValid = validateForm();
       if (!isValid) return;
-      
+
       // Check for duplicate booking name
       const { data: existingBookings } = await supabase
         .from('bookings')
@@ -532,12 +592,12 @@ const Bookings = () => {
         .ilike('event_name', formData.event_name.trim())
         .not('status', 'eq', 'cancelled');
 
-      if (existingBookings && existingBookings.length > 0 && 
-          (!editingBooking || !existingBookings.some(b => b.id === editingBooking.id))) {
+      if (existingBookings && existingBookings.length > 0 &&
+        (!editingBooking || !existingBookings.some(b => b.id === editingBooking.id))) {
         toast.error('A booking with this name already exists. Please use a unique name.');
         return;
       }
-      
+
       setCreateConfirmOpen(true);
       return;
     }
@@ -546,14 +606,14 @@ const Bookings = () => {
     if (formData.from_time && formData.to_time) {
       const [startHours, startMinutes] = formData.from_time.split(':').map(Number);
       const [endHours, endMinutes] = formData.to_time.split(':').map(Number);
-      
+
       // Create date objects for comparison (using the same date)
       const startDate = new Date();
       startDate.setHours(startHours, startMinutes, 0, 0);
-      
+
       const endDate = new Date();
       endDate.setHours(endHours, endMinutes, 0, 0);
-      
+
       if (startDate >= endDate) {
         toast.error("End time must be after start time");
         return;
@@ -637,6 +697,22 @@ const Bookings = () => {
         if (error) throw error;
         await recordInitialPayment(data.id);
         toast.success("Booking created successfully");
+
+        // Auto-trigger Dual (WhatsApp & Email) notification for new booking forward
+        const client = clients.find(c => c.id.toString() === formData.client_id);
+        const eventDateStr = new Date(formData.event_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        const message = `*New Booking Created*\n\n*Event:* ${formData.event_name}\n*Date:* ${eventDateStr}\n*Time:* ${formData.from_time || 'N/A'}${formData.to_time ? ' - ' + formData.to_time : ''}\n*Location:* ${formData.location || 'N/A'}\n*Total Amount:* ₹${formData.total_amount.toLocaleString()}\n\n*Client Details:*\n*Name:* ${client?.name || 'Unknown'}\n*Phone:* ${client?.phone || 'N/A'}\n*WhatsApp:* ${client?.whatsapp_number || client?.phone || 'N/A'}\n*Email:* ${client?.email || 'N/A'}`;
+
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        const emailSubject = `Booking Confirmation: ${formData.event_name}`;
+        const emailBody = message.replace(/\*/g, '');
+        const mailtoUrl = `mailto:${client?.email || ''}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+        window.open(whatsappUrl, "_blank");
+        setTimeout(() => {
+          window.location.href = mailtoUrl;
+        }, 500);
       }
 
       setIsOpen(false);
@@ -694,6 +770,22 @@ const Bookings = () => {
         if (error) throw error;
         await recordInitialPayment(data.id);
         toast.success("Booking created successfully");
+
+        // Auto-trigger Dual (WhatsApp & Email) notification for new booking forward
+        const client = clients.find(c => c.id.toString() === formData.client_id);
+        const eventDateStr = new Date(formData.event_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        const message = `*New Booking Created*\n\n*Event:* ${formData.event_name}\n*Date:* ${eventDateStr}\n*Time:* ${formData.from_time || 'N/A'}${formData.to_time ? ' - ' + formData.to_time : ''}\n*Location:* ${formData.location || 'N/A'}\n*Total Amount:* ₹${formData.total_amount.toLocaleString()}\n\n*Client Details:*\n*Name:* ${client?.name || 'Unknown'}\n*Phone:* ${client?.phone || 'N/A'}\n*WhatsApp:* ${client?.whatsapp_number || client?.phone || 'N/A'}\n*Email:* ${client?.email || 'N/A'}`;
+
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        const emailSubject = `Booking Confirmation: ${formData.event_name}`;
+        const emailBody = message.replace(/\*/g, '');
+        const mailtoUrl = `mailto:${client?.email || ''}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+        window.open(whatsappUrl, "_blank");
+        setTimeout(() => {
+          window.location.href = mailtoUrl;
+        }, 500);
       }
 
       setIsOpen(false);
@@ -712,7 +804,7 @@ const Bookings = () => {
         entity_id: "",
         total_amount: 0,
       });
-     } catch (error) {
+    } catch (error) {
       console.error("Error saving booking:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save booking");
     }
@@ -773,7 +865,7 @@ const Bookings = () => {
     window.open(whatsappUrl, "_blank");
   };
 
-  
+
 
   // CSV Export
   const exportToCSV = () => {
@@ -859,7 +951,7 @@ const Bookings = () => {
       </div>
 
       <div className="flex flex-col gap-4 mb-6">
-        
+
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 md:gap-4">
             <div className="relative w-full sm:max-w-xs">
@@ -904,27 +996,27 @@ const Bookings = () => {
               <Plus className="mr-1 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> New Booking
             </Button>
           </div>
-          
+
           <div className="flex flex-col w-full gap-3">
             {/* Status filter buttons - aligned to left */}
             <div className="flex flex-wrap gap-2">
               <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm"
-                className={`text-xs ${statusFilter === 'all' ? 'bg-primary' : 'bg-white'}`} 
+                className={`text-xs ${statusFilter === 'all' ? 'bg-primary' : 'bg-white'}`}
                 onClick={() => setStatusFilter('all')}>
                 All
               </Button>
               <Button variant={statusFilter === 'confirmed' ? 'default' : 'outline'} size="sm"
-                className={`text-xs ${statusFilter === 'confirmed' ? 'bg-green-100 text-green-800 hover:bg-green-100 hover:text-green-800' : 'bg-white'}`} 
+                className={`text-xs ${statusFilter === 'confirmed' ? 'bg-green-100 text-green-800 hover:bg-green-100 hover:text-green-800' : 'bg-white'}`}
                 onClick={() => setStatusFilter('confirmed')}>
                 Confirmed
               </Button>
               <Button variant={statusFilter === 'completed' ? 'default' : 'outline'} size="sm"
-                className={`text-xs ${statusFilter === 'completed' ? 'bg-blue-100 text-blue-800 hover:bg-blue-100 hover:text-blue-800' : 'bg-white'}`} 
+                className={`text-xs ${statusFilter === 'completed' ? 'bg-blue-100 text-blue-800 hover:bg-blue-100 hover:text-blue-800' : 'bg-white'}`}
                 onClick={() => setStatusFilter('completed')}>
                 Completed
               </Button>
               <Button variant={statusFilter === 'cancelled' ? 'default' : 'outline'} size="sm"
-                className={`text-xs ${statusFilter === 'cancelled' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100 hover:text-gray-800' : 'bg-white'}`} 
+                className={`text-xs ${statusFilter === 'cancelled' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100 hover:text-gray-800' : 'bg-white'}`}
                 onClick={() => setStatusFilter('cancelled')}>
                 Cancelled
               </Button>
@@ -932,18 +1024,18 @@ const Bookings = () => {
 
             {/* CSV buttons - aligned to right */}
             <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                onClick={exportToCSV} 
+              <Button
+                variant="outline"
+                onClick={exportToCSV}
                 className="touch-feedback text-xs md:text-sm h-8 md:h-9 px-3 md:px-4"
               >
                 <Download className="mr-1 h-3.5 w-3.5" />
                 <span>Export CSV</span>
               </Button>
               <label htmlFor="csv-import-inline" className="cursor-pointer">
-                <Button 
-                  variant="outline" 
-                  asChild 
+                <Button
+                  variant="outline"
+                  asChild
                   className="touch-feedback text-xs md:text-sm h-8 md:h-9 px-3 md:px-4"
                 >
                   <span className="inline-flex items-center">
@@ -1129,7 +1221,7 @@ const Bookings = () => {
                         value={formData.entity_id}
                         onValueChange={(value) => setFormData({ ...formData, entity_id: value })}
                       >
-                        <SelectTrigger 
+                        <SelectTrigger
                           className={cn(
                             "w-full h-10 rounded-md border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
                             formErrors.entity_id ? 'border-red-500 focus:ring-red-200' : 'border-gray-300'
@@ -1139,8 +1231,8 @@ const Bookings = () => {
                         </SelectTrigger>
                         <SelectContent className="bg-white border border-gray-200 rounded-md shadow-lg">
                           {entities.map((entity) => (
-                            <SelectItem 
-                              key={entity.id} 
+                            <SelectItem
+                              key={entity.id}
                               value={entity.id}
                               className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                             >
@@ -1234,8 +1326,8 @@ const Bookings = () => {
                       <PopoverContent className="w-[320px] p-0 border border-gray-200 shadow-lg rounded-lg overflow-hidden">
                         <Command className="bg-white">
                           <div className="px-3 pt-2">
-                            <CommandInput 
-                              placeholder="Search clients..." 
+                            <CommandInput
+                              placeholder="Search clients..."
                               className="h-9 text-sm"
                             />
                           </div>
@@ -1260,8 +1352,8 @@ const Bookings = () => {
                                 >
                                   <div className={cn(
                                     "flex items-center justify-center h-4 w-4 rounded-full border mr-3 flex-shrink-0",
-                                    formData.client_id === client.id 
-                                      ? "bg-blue-100 border-blue-500 text-blue-700" 
+                                    formData.client_id === client.id
+                                      ? "bg-blue-100 border-blue-500 text-blue-700"
                                       : "border-gray-300"
                                   )}>
                                     {formData.client_id === client.id && (
@@ -1307,7 +1399,7 @@ const Bookings = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="total_amount">Total Amount (₹)</Label>
                     <Input
@@ -1425,177 +1517,235 @@ const Bookings = () => {
         ) : (
           <>
             {paginatedBookings.map((booking) => (
-            <Card
-              key={booking.id}
-              className="group glass card-hover rounded-xl md:rounded-2xl border-0 shadow-card hover:shadow-card-hover cursor-pointer w-full min-w-0 flex flex-col touch-feedback active:scale-[0.98] transition-all duration-300 overflow-hidden"
-              onClick={() => openDetailDialog(booking)}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-              <CardHeader className="pb-2 md:pb-3 pt-4 md:pt-6 px-4 md:px-6 relative">
-                <CardTitle className="flex items-center justify-between gap-2">
-                  <span className="text-base md:text-lg font-bold text-foreground truncate group-hover:text-primary transition-colors duration-200">
-                    {booking.event_name}
-                  </span>
-                  <span
-                    className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all duration-200 whitespace-nowrap shadow-sm ${
-                      getDerivedStatus(booking) === "confirmed"
+              <Card
+                key={booking.id}
+                className="group glass card-hover rounded-xl md:rounded-2xl border-0 shadow-card hover:shadow-card-hover cursor-pointer w-full min-w-0 flex flex-col touch-feedback active:scale-[0.98] transition-all duration-300 overflow-hidden"
+                onClick={() => openDetailDialog(booking)}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                <CardHeader className="pb-2 md:pb-3 pt-4 md:pt-6 px-4 md:px-6 relative">
+                  <CardTitle className="flex items-center justify-between gap-2">
+                    <span className="text-base md:text-lg font-bold text-foreground truncate group-hover:text-primary transition-colors duration-200">
+                      {booking.event_name}
+                    </span>
+                    <span
+                      className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all duration-200 whitespace-nowrap shadow-sm ${getDerivedStatus(booking) === "confirmed"
                         ? "bg-gradient-to-r from-green-100 to-green-50 text-green-700 group-hover:from-green-200 group-hover:to-green-100"
                         : getDerivedStatus(booking) === "completed"
-                        ? "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 group-hover:from-blue-200 group-hover:to-blue-100"
-                        : "bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 group-hover:from-gray-200 group-hover:to-gray-100"
-                    }`}
-                  >
-                    {getDerivedStatus(booking)}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 md:px-6 pb-3 md:pb-4 flex flex-col flex-1 relative">
-                <div className="space-y-1.5 md:space-y-2 flex-1">
-                  <div className="space-y-1">
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <Calendar className="mr-1.5 h-3 w-3" />
-                      <span className="text-xs font-medium">Booked on: </span>
-                      <span className="ml-1">
-                        {new Date(booking.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-xs md:text-sm text-muted-foreground">
-                      <Calendar className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-                      {new Date(booking.event_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      {booking.from_time && booking.to_time && ` • ${formatTime12Hour(booking.from_time)} - ${formatTime12Hour(booking.to_time)}`}
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  {booking.location && (
-                    <div className="flex items-center text-xs md:text-sm text-muted-foreground">
-                      <MapPin className="mr-1 md:mr-1.5 h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-                      <span className="truncate">{booking.location}</span>
-                    </div>
-                  )}
-
-                  {/* Entity */}
-                  {booking.entities?.name && (
-                    <div className="flex items-center text-xs md:text-sm text-primary font-medium truncate">
-                      <Building2 className="mr-1 md:mr-1.5 h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-                      <span className="truncate">{booking.entities.name}</span>
-                    </div>
-                  )}
-
-                  {/* Client */}
-                  <div className="text-xs md:text-sm truncate">
-                    <span className="font-medium">Client:</span> {booking.clients?.name || "N/A"}
-                  </div>
-
-                  {/* Package */}
-                  {booking.packages?.name && (
-                    <div className="text-xs md:text-sm truncate">
-                      <span className="font-medium">Package:</span> {booking.packages.name}
-                    </div>
-                  )}
-
-                  {/* Portfolio Item */}
-                  {booking.portfolio_items?.title && (
-                    <div className="text-xs md:text-sm truncate">
-                      <span className="font-medium">Item:</span> {booking.portfolio_items.title}
-                      {booking.portfolio_items.price > 0 && ` (₹${booking.portfolio_items.price})`}
-                    </div>
-                  )}
-
-                  {/* Amount and Payment Status */}
-                  {booking.total_amount > 0 && (
-                    <div className="pt-1 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Total Amount</span>
-                        <span className="text-sm md:text-base font-bold text-primary">₹{getPaymentInfo(booking).totalAmount.toLocaleString()}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Paid</span>
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-green-600">₹{getPaymentInfo(booking).totalPaid.toLocaleString()}</span>
-                          <span className="text-muted-foreground">/</span>
-                          <span className="font-medium">₹{getPaymentInfo(booking).totalAmount.toLocaleString()}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Payment Progress Bar */}
-                      {getPaymentInfo(booking).totalAmount > 0 && (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
-                            style={{ width: `${getPaymentInfo(booking).paymentProgress}%` }}
-                          />
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Status</span>
-                        <span className={`font-medium ${getPaymentInfo(booking).pending > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                          {getPaymentInfo(booking).pending > 0 ? 
-                            `Pending: ₹${getPaymentInfo(booking).pending.toLocaleString()}` : 
-                            'Fully Paid'}
+                          ? "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 group-hover:from-blue-200 group-hover:to-blue-100"
+                          : "bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 group-hover:from-gray-200 group-hover:to-gray-100"
+                        }`}
+                    >
+                      {getDerivedStatus(booking)}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 md:px-6 pb-3 md:pb-4 flex flex-col flex-1 relative">
+                  <div className="space-y-1.5 md:space-y-2 flex-1">
+                    <div className="space-y-1">
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Calendar className="mr-1.5 h-3 w-3" />
+                        <span className="text-xs font-medium">Booked on: </span>
+                        <span className="ml-1">
+                          {new Date(booking.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </span>
                       </div>
+                      <div className="flex items-center text-xs md:text-sm text-muted-foreground">
+                        <Calendar className="mr-1.5 md:mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+                        {new Date(booking.event_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {booking.from_time && booking.to_time && ` • ${formatTime12Hour(booking.from_time)} - ${formatTime12Hour(booking.to_time)}`}
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* Buttons always at bottom */}
-                <div className="flex gap-1 md:gap-1.5 pt-2 flex-wrap mt-auto">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      sendMessage(booking);
-                    }}
-                    className="flex-1 min-w-0 h-8 md:h-9 touch-feedback"
-                    title="Send Message"
-                  >
-                    <MessageSquare className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-600" />
-                  </Button>
-                  
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDetailDialog(booking);
-                    }}
-                    className="flex-1 min-w-0 h-8 md:h-9 touch-feedback"
-                    title="View Details"
-                  >
-                    <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  </Button>
+                    {/* Location */}
+                    {booking.location && (
+                      <div className="flex items-center text-xs md:text-sm text-muted-foreground">
+                        <MapPin className="mr-1 md:mr-1.5 h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+                        <span className="truncate">{booking.location}</span>
+                      </div>
+                    )}
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditDialog(booking);
-                    }}
-                    className="flex-1 min-w-0 h-8 md:h-9 touch-feedback"
-                    title="Edit Booking"
-                  >
-                    <Pencil className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteBooking(booking.id);
-                    }}
-                    className="flex-1 min-w-0 h-8 md:h-9 touch-feedback text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
-                    title="Delete Booking"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                    {/* Entity */}
+                    {booking.entities?.name && (
+                      <div className="flex items-center text-xs md:text-sm text-primary font-medium truncate">
+                        <Building2 className="mr-1 md:mr-1.5 h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+                        <span className="truncate">{booking.entities.name}</span>
+                      </div>
+                    )}
+
+                    {/* Client */}
+                    <div className="text-xs md:text-sm truncate">
+                      <span className="font-medium">Client:</span> {booking.clients?.name || "N/A"}
+                    </div>
+
+                    {/* Package */}
+                    {booking.packages?.name && (
+                      <div className="text-xs md:text-sm truncate">
+                        <span className="font-medium">Package:</span> {booking.packages.name}
+                      </div>
+                    )}
+
+                    {/* Portfolio Item */}
+                    {booking.portfolio_items?.title && (
+                      <div className="text-xs md:text-sm truncate">
+                        <span className="font-medium">Item:</span> {booking.portfolio_items.title}
+                        {booking.portfolio_items.price > 0 && ` (₹${booking.portfolio_items.price})`}
+                      </div>
+                    )}
+
+                    {/* Amount and Payment Status */}
+                    {booking.total_amount > 0 && (
+                      <div className="pt-1 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Total Amount</span>
+                          <span className="text-sm md:text-base font-bold text-primary">₹{getPaymentInfo(booking).totalAmount.toLocaleString()}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Paid</span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-green-600">₹{getPaymentInfo(booking).totalPaid.toLocaleString()}</span>
+                            <span className="text-muted-foreground">/</span>
+                            <span className="font-medium">₹{getPaymentInfo(booking).totalAmount.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Payment Progress Bar */}
+                        {getPaymentInfo(booking).totalAmount > 0 && (
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div
+                              className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                              style={{ width: `${getPaymentInfo(booking).paymentProgress}%` }}
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Status</span>
+                          <span className={`font-medium ${getPaymentInfo(booking).pending > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {getPaymentInfo(booking).pending > 0 ?
+                              `Pending: ₹${getPaymentInfo(booking).pending.toLocaleString()}` :
+                              'Fully Paid'}
+                          </span>
+                        </div>
+
+                        <Separator className="my-1 bg-gray-100" />
+
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          <span className="text-muted-foreground">Net Profit</span>
+                          {(() => {
+                            const revenue = Number(booking.total_amount) || 0;
+                            const costs = expensesByBooking[booking.id] || 0;
+                            const profit = revenue - costs;
+                            const isLoss = profit < 0;
+                            return (
+                              <span className={`font-bold ${isLoss ? 'text-red-600' : 'text-indigo-600'}`}>
+                                ₹{profit.toLocaleString()}
+                                {revenue > 0 && (
+                                  <span className="text-[10px] ml-1 font-normal opacity-80">
+                                    ({((profit / revenue) * 100).toFixed(0)}%)
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Buttons always at bottom */}
+                  <div className="flex gap-1 md:gap-1.5 pt-2 flex-wrap mt-auto">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        sendMessage(booking);
+                      }}
+                      className="flex-1 min-w-0 h-8 md:h-9 touch-feedback"
+                      title="Send Message"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-600" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Pre-fill amount with pending balance
+                        const pending = getPaymentInfo(booking).pending;
+                        setSelectedBookingForPayment(booking);
+                        setQuickPaymentData(prev => ({
+                          ...prev,
+                          amount: pending > 0 ? String(pending) : ""
+                        }));
+                        setPaymentDialogOpen(true);
+                      }}
+                      className="flex-1 min-w-0 h-8 md:h-9 touch-feedback text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 hover:border-green-300"
+                      title="Add Payment"
+                    >
+                      <DollarSign className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBookingForExpense(booking);
+                        setExpenseData(prev => ({ ...prev, vendor: booking.clients?.name || "" }));
+                        setExpenseDialogOpen(true);
+                      }}
+                      className="flex-1 min-w-0 h-8 md:h-9 touch-feedback text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200 hover:border-orange-300"
+                      title="Add Expense"
+                    >
+                      <Receipt className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBookingForProfit(booking);
+                        setProfitBreakdownOpen(true);
+                      }}
+                      className="flex-1 min-w-0 h-8 md:h-9 touch-feedback text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200 hover:border-indigo-300"
+                      title="Profit Breakdown"
+                    >
+                      <Calculator className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditDialog(booking);
+                      }}
+                      className="flex-1 min-w-0 h-8 md:h-9 touch-feedback"
+                      title="Edit Booking"
+                    >
+                      <Pencil className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteBooking(booking.id);
+                      }}
+                      className="flex-1 min-w-0 h-8 md:h-9 touch-feedback text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+                      title="Delete Booking"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </>
         )}
@@ -1612,7 +1762,7 @@ const Bookings = () => {
               }</span>
               <span className="hidden sm:inline"> of <span className="font-medium">{filteredBookings.length}</span> bookings</span>
             </div>
-            
+
             <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto justify-between sm:justify-normal">
               <div className="flex items-center gap-1 sm:gap-2">
                 <Button
@@ -1636,7 +1786,7 @@ const Bookings = () => {
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <div className="hidden sm:flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum;
@@ -1649,7 +1799,7 @@ const Bookings = () => {
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
-                  
+
                   return (
                     <Button
                       key={pageNum}
@@ -1663,7 +1813,7 @@ const Bookings = () => {
                   );
                 })}
               </div>
-              
+
               <div className="flex items-center gap-1 sm:gap-2">
                 <Button
                   variant="outline"
@@ -1687,7 +1837,7 @@ const Bookings = () => {
                 </Button>
               </div>
             </div>
-            
+
             {/* Mobile page info */}
             <div className="text-xs text-muted-foreground sm:hidden w-full text-center mt-2">
               Page {currentPage} of {totalPages}
@@ -1789,11 +1939,260 @@ const Bookings = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="px-1 py-2">
-            <ClientForm 
+            <ClientForm
               onSuccess={handleClientAdded}
               onCancel={() => setIsClientDialogOpen(false)}
             />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add Expense Dialog */}
+      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+        <DialogContent className="md:max-w-md w-full rounded-t-2xl md:rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Add Expense for {selectedBookingForExpense?.event_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={expenseData.date}
+                  onChange={e => setExpenseData(p => ({ ...p, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Amount (₹)</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={expenseData.amount}
+                  onChange={e => setExpenseData(p => ({ ...p, amount: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={expenseData.category} onValueChange={v => setExpenseData(p => ({ ...p, category: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Equipment", "Travel", "Food & Catering", "Decoration", "Photography", "Software", "Other"].map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Vendor / Payee</Label>
+              <Input
+                placeholder="Who did you pay?"
+                value={expenseData.vendor}
+                onChange={e => setExpenseData(p => ({ ...p, vendor: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Input
+                placeholder="What was this for?"
+                value={expenseData.description}
+                onChange={e => setExpenseData(p => ({ ...p, description: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setExpenseDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!expenseData.amount || Number(expenseData.amount) <= 0) {
+                  toast.error("Please enter a valid amount");
+                  return;
+                }
+                setIsRecordingExpense(true);
+                const { error } = await supabase.from("expenses").insert({
+                  vendor_id: user!.id,
+                  booking_id: selectedBookingForExpense.id,
+                  date: expenseData.date,
+                  category: expenseData.category,
+                  amount: Number(expenseData.amount),
+                  vendor: expenseData.vendor,
+                  description: expenseData.description,
+                  payment_mode: expenseData.payment_mode
+                });
+                setIsRecordingExpense(false);
+                if (error) {
+                  toast.error("Failed to add expense");
+                } else {
+                  toast.success("Expense added successfully");
+                  setExpenseDialogOpen(false);
+                  setExpenseData(prev => ({ ...prev, amount: "", description: "" }));
+                }
+              }}
+              disabled={isRecordingExpense}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {isRecordingExpense ? "Adding..." : "Add Expense"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Profit Breakdown Dialog */}
+      <Dialog open={profitBreakdownOpen} onOpenChange={setProfitBreakdownOpen}>
+        <DialogContent className="md:max-w-md w-full rounded-t-2xl md:rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-indigo-600" />
+              Profit Breakdown
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBookingForProfit?.event_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center bg-green-50 p-3 rounded-lg border border-green-100">
+              <span className="text-sm font-medium text-green-700">Total Revenue</span>
+              <span className="text-lg font-bold text-green-800">
+                ₹{Number(selectedBookingForProfit?.total_amount || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center bg-red-50 p-3 rounded-lg border border-red-100">
+              <span className="text-sm font-medium text-red-700">Total Expenses</span>
+              <span className="text-lg font-bold text-red-800">
+                ₹{(expensesByBooking[selectedBookingForProfit?.id] || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <Separator />
+
+            <div className={`p-4 rounded-xl border flex flex-col items-center gap-1 ${(Number(selectedBookingForProfit?.total_amount || 0) - (expensesByBooking[selectedBookingForProfit?.id] || 0)) >= 0
+              ? 'bg-indigo-50 border-indigo-100'
+              : 'bg-red-100 border-red-200'
+              }`}>
+              <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Net Profit</span>
+              <span className={`text-3xl font-black ${(Number(selectedBookingForProfit?.total_amount || 0) - (expensesByBooking[selectedBookingForProfit?.id] || 0)) >= 0
+                ? 'text-indigo-700'
+                : 'text-red-700'
+                }`}>
+                ₹{(Number(selectedBookingForProfit?.total_amount || 0) - (expensesByBooking[selectedBookingForProfit?.id] || 0)).toLocaleString()}
+              </span>
+              {Number(selectedBookingForProfit?.total_amount) > 0 && (
+                <Badge variant="outline" className="mt-2 bg-white/50">
+                  {(((Number(selectedBookingForProfit?.total_amount || 0) - (expensesByBooking[selectedBookingForProfit?.id] || 0)) / Number(selectedBookingForProfit?.total_amount)) * 100).toFixed(1)}% Margin
+                </Badge>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => setProfitBreakdownOpen(false)}>
+              Close Analysis
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="md:max-w-md w-full rounded-t-2xl md:rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              Record Payment
+            </DialogTitle>
+            <DialogDescription>
+              Add a new payment for {selectedBookingForPayment?.event_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Amount (₹)</Label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={quickPaymentData.amount}
+                onChange={(e) => setQuickPaymentData({ ...quickPaymentData, amount: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Payment Method</Label>
+              <Select
+                value={quickPaymentData.payment_method}
+                onValueChange={(v) => setQuickPaymentData({ ...quickPaymentData, payment_method: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={quickPaymentData.payment_date}
+                onChange={(e) => setQuickPaymentData({ ...quickPaymentData, payment_date: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                const amount = Number(quickPaymentData.amount);
+                if (amount <= 0) {
+                  toast.error("Please enter a valid amount");
+                  return;
+                }
+                setIsRecordingQuickPayment(true);
+
+                // Determine payment type
+                const pendingAmount = getPaymentInfo(selectedBookingForPayment).pending;
+                let paymentType: 'full' | 'partial' | 'advance' | 'overpaid' = 'partial';
+
+                if (Math.abs(amount - pendingAmount) < 0.01) {
+                  paymentType = 'full';
+                } else if (amount > pendingAmount) {
+                  paymentType = 'overpaid';
+                } else {
+                  paymentType = 'partial';
+                }
+
+                const { error } = await supabase.from("payments").insert({
+                  booking_id: selectedBookingForPayment.id,
+                  vendor_id: user!.id,
+                  amount: amount,
+                  payment_method: quickPaymentData.payment_method,
+                  payment_date: quickPaymentData.payment_date,
+                  payment_type: paymentType,
+                });
+
+                setIsRecordingQuickPayment(false);
+                if (error) {
+                  toast.error("Failed to record payment");
+                } else {
+                  toast.success("Payment recorded successfully");
+                  setPaymentDialogOpen(false);
+                  setQuickPaymentData(prev => ({ ...prev, amount: "" }));
+                  fetchPaymentsByBooking(); // Refresh the payments list
+                }
+              }}
+              disabled={isRecordingQuickPayment}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isRecordingQuickPayment ? "Recording..." : "Record Payment"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

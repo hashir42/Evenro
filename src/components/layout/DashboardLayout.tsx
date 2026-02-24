@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { LayoutDashboard, Calendar, Users, Package, DollarSign, FileText, BarChart, Settings, LogOut, Building2, FolderOpen } from "lucide-react";
+import { LayoutDashboard, Calendar, Users, Package, DollarSign, FileText, BarChart, Settings, LogOut, Building2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import MobileBottomNav from "./MobileBottomNav";
@@ -12,12 +12,12 @@ const navigationItems = [
   { title: "Bookings", url: "/bookings", icon: Calendar },
   { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "Clients & CRM", url: "/clients", icon: Users },
+  { title: "Expenses", url: "/expenses", icon: Receipt },
   { title: "Packages", url: "/packages", icon: Package },
   { title: "Venues/Branches", url: "/entities", icon: Building2 },
   { title: "Payments", url: "/payments", icon: DollarSign },
   { title: "Invoices", url: "/invoices", icon: FileText },
   { title: "Accounts", url: "/accounts", icon: DollarSign },
-  { title: "Documents", url: "/documents", icon: FolderOpen },
   { title: "Reports", url: "/reports", icon: BarChart },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
@@ -71,20 +71,17 @@ const DashboardSidebar = () => {
                       to={item.url}
                       onClick={handleNavClick}
                       className={({ isActive }) =>
-                        `flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-180 ease-out group ${
-                          isActive
-                            ? "bg-gold-500/20 text-white border border-gold-500/30 shadow-md"
-                            : "text-white/80 hover:bg-white/5 hover:text-white"
+                        `flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-180 ease-out group ${isActive
+                          ? "bg-gold-500/20 text-white border border-gold-500/30 shadow-md"
+                          : "text-white/80 hover:bg-white/5 hover:text-white"
                         }`
                       }
                     >
-                      <item.icon className={`h-4 w-4 shrink-0 transition-colors duration-180 ${
-                        isActive ? "text-gold-400" : "text-white/60 group-hover:text-gold-400"
-                      }`} />
+                      <item.icon className={`h-4 w-4 shrink-0 transition-colors duration-180 ${isActive ? "text-gold-400" : "text-white/60 group-hover:text-gold-400"
+                        }`} />
                       {!isCollapsed && (
-                        <span className={`text-sm font-medium transition-all duration-180 truncate min-w-0 ${
-                          isActive ? "text-white" : "text-white/80"
-                        }`}>
+                        <span className={`text-sm font-medium transition-all duration-180 truncate min-w-0 ${isActive ? "text-white" : "text-white/80"
+                          }`}>
                           {item.title}
                         </span>
                       )}
